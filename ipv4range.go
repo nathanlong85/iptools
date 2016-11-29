@@ -65,6 +65,8 @@ func (r *IPv4Range) RemoveIP(ip string) bool {
 	return true
 }
 
+// TODO: Add method to grab next available
+
 func broadcastAddress(ip net.IP, mask net.IPMask) net.IP {
 	return net.IPv4(
 		ip[0]|^mask[0],
