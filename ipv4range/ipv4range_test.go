@@ -8,12 +8,12 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(r.IPs) != 256 {
+	if len(r.ips) != 256 {
 		t.Fatal("Incorrect number of IPs returned for /24 test range")
 	}
 }
 
-func TestNextAvailableIP(t *testing.T) {
+func TestNextAvailable(t *testing.T) {
 	r, err := New("192.168.0.0/24")
 	if err != nil {
 		t.Fatal(err)
@@ -29,19 +29,30 @@ func TestNextAvailableIP(t *testing.T) {
 	}
 }
 
-func TestAvailableIPs(t *testing.T) {
+func TestAvailable(t *testing.T) {
 	r, err := New("192.168.0.0/24")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(r.AvailableIPs()) != 254 {
+	if len(r.Available()) != 254 {
 		t.Fatal("Incorrect number of IP available IPs returned for /24 test range")
 	}
 
-	for _, ip := range r.AvailableIPs() {
+	for _, ip := range r.Available() {
 		if ip.Equal(r.Broadcast) || ip.Equal(r.Network) {
 			t.Fatal("Available IPs should not include broadcast or network IP")
 		}
+	}
+}
+
+func TestAll(t *testing.T) {
+	r, err := New("192.168.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r.All()) != 256 {
+		t.Fatal("Incorrect number of IPs returned for /24 test range")
 	}
 }

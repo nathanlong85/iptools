@@ -5,9 +5,11 @@ import (
 	"net"
 )
 
+// TODO: Encapsulate IPV4Range values, make UnavailableIPs and Available fields
+
 // IPv4Range represents an IPv4 subnet
 type IPv4Range struct {
-	IPs       []net.IP
+	ips       []net.IP
 	Mask      net.IPMask
 	Network   net.IP
 	Broadcast net.IP
@@ -30,19 +32,25 @@ func New(cidrNet string) (IPv4Range, error) {
 		ips = append(ips, copiedIP)
 	}
 
-	r.IPs = ips
+	r.ips = ips
 	r.Mask = ipnet.Mask
 	r.Network = ipnet.IP
-	r.Broadcast = broadcastAddress(ipnet.IP, ipnet.Mask)
+	r.Broadcast = broadcast(ipnet.IP, ipnet.Mask)
 
 	return r, nil
 }
 
-// AvailableIPs returns only usable IPs by filtering out
+// All returns a slice of all IPs that were calculated in the subnet.
+// This includes broadcast, network, and any removed addresses.
+func (r *IPv4Range) All() []net.IP {
+	return r.ips
+}
+
+// Available returns only usable IPs by filtering out
 // the network and broadcast addresses
-func (r *IPv4Range) AvailableIPs() []net.IP {
-	ips := make([]net.IP, len(r.IPs))
-	copy(ips, r.IPs)
+func (r *IPv4Range) Available() []net.IP {
+	ips := make([]net.IP, len(r.ips))
+	copy(ips, r.ips)
 
 	// Filter out Network address
 	ips = append(ips[:0], ips[1:]...)
@@ -52,16 +60,16 @@ func (r *IPv4Range) AvailableIPs() []net.IP {
 	return ips
 }
 
-// RemoveIP manually removes an IP from an IPv4Range
-func (r *IPv4Range) RemoveIP(ip string) bool {
+// Remove manually removes an IP from an IPv4Range
+func (r *IPv4Range) Remove(ip string) bool {
 	remIP := net.ParseIP(ip)
 	if remIP == nil {
 		return false
 	}
 
-	for idx, val := range r.IPs {
+	for idx, val := range r.ips {
 		if val.Equal(remIP) {
-			r.IPs = append(r.IPs[:idx], r.IPs[idx+1:]...)
+			r.ips = append(r.ips[:idx], r.ips[idx+1:]...)
 		}
 	}
 
@@ -71,14 +79,14 @@ func (r *IPv4Range) RemoveIP(ip string) bool {
 // NextAvailable returns the next available IP(s) in the IP Range. The number of
 // available IPs returned should be specified as a parameter.
 func (r *IPv4Range) NextAvailable(num int) ([]net.IP, error) {
-	if len(r.AvailableIPs()) < num {
-		return nil, fmt.Errorf("Requested %d IPs, only %d available", num, len(r.AvailableIPs()))
+	if len(r.Available()) < num {
+		return nil, fmt.Errorf("Requested %d IPs, only %d available", num, len(r.Available()))
 	}
 
-	return r.AvailableIPs()[:num], nil
+	return r.Available()[:num], nil
 }
 
-func broadcastAddress(ip net.IP, mask net.IPMask) net.IP {
+func broadcast(ip net.IP, mask net.IPMask) net.IP {
 	return net.IPv4(
 		ip[0]|^mask[0],
 		ip[1]|^mask[1],
