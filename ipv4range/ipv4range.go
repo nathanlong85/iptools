@@ -1,6 +1,9 @@
 package ipv4range
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 // IPv4Range represents an IPv4 subnet
 type IPv4Range struct {
@@ -35,9 +38,9 @@ func New(cidrNet string) (IPv4Range, error) {
 	return r, nil
 }
 
-// UsableIPs returns only usable IPs by filtering out
+// AvailableIPs returns only usable IPs by filtering out
 // the network and broadcast addresses
-func (r *IPv4Range) UsableIPs() []net.IP {
+func (r *IPv4Range) AvailableIPs() []net.IP {
 	ips := make([]net.IP, len(r.IPs))
 	copy(ips, r.IPs)
 
@@ -65,7 +68,15 @@ func (r *IPv4Range) RemoveIP(ip string) bool {
 	return true
 }
 
-// TODO: Add method to grab next available
+// NextAvailable returns the next available IP(s) in the IP Range. The number of
+// available IPs returned should be specified as a parameter.
+func (r *IPv4Range) NextAvailable(num int) ([]net.IP, error) {
+	if len(r.AvailableIPs()) < num {
+		return nil, fmt.Errorf("Requested %d IPs, only %d available", num, len(r.AvailableIPs()))
+	}
+
+	return r.AvailableIPs()[:num], nil
+}
 
 func broadcastAddress(ip net.IP, mask net.IPMask) net.IP {
 	return net.IPv4(
