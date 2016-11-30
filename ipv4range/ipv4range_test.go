@@ -87,3 +87,11 @@ func TestUnavailable(t *testing.T) {
 		t.Fatalf("%d unavailable IPs returned. Should be 3", len(r.Unavailable()))
 	}
 }
+
+func TestBroadcast(t *testing.T) {
+	_, ipnet, _ := net.ParseCIDR("192.168.0.0/24")
+	bcast := Broadcast(ipnet.IP, ipnet.Mask)
+	if !bcast.Equal(net.ParseIP("192.168.0.255")) {
+		t.Fatalf("Broadcast %s not correct for 192.168.0.0/24", bcast)
+	}
+}
