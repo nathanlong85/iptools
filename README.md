@@ -7,6 +7,8 @@ ipv4range allows you to create and work with an ipv4 subnet.
 Examples:
 
 ```
+import "github.com/nathanlong85/iptools/ipv4range"
+
 // Create new range
 r, err := ipv4range.New("192.168.0.0/23")
 
