@@ -16,15 +16,25 @@ r, err := ipv4range.New("192.168.0.0/23")
 // (excludes broadcast and network addresses by default)
 avail := r.Available()
 
+// Returns all unavailable IPs that have been removed
+unavail := r.Unavailable()
+
 // Returns next N availble IPs in a []net.IP
 nextOne, err := r.NextAvailable(1)
 nextFive, err := r.NextAvailable(5)
 
 // Remove an available IP from a subnet's list of AvailableIPs
-ok := r.Remove("192.168.0.1")
+ok := r.Remove(net.ParseIP("192.168.0.1"))
 
-// List all IPs in subnet, including unavailable ones, in a []net.IP
+// Returns all IPs in subnet, including unavailable ones, in a []net.IP
 all := r.All()
-```
 
-Note: New() and Remove() currently take a string that gets converted to a net.IP type. I can see how that's inconsistent and will try to allow both a string or net.IP.
+// Returns broadcast address of network
+bcast := r.Broadcast()
+
+// Returns network address of network
+network := r.Network()
+
+// Returns netmask of network
+netmask := r.Mask()
+```
