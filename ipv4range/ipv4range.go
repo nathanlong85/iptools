@@ -5,14 +5,14 @@ import (
 	"net"
 )
 
-// TODO: Encapsulate IPV4Range values, make UnavailableIPs and Available fields
-
 // IPv4Range represents an IPv4 subnet
 type IPv4Range struct {
-	ips       []net.IP
-	Mask      net.IPMask
-	Network   net.IP
-	Broadcast net.IP
+	ips           []net.IP
+	availableIPs  []net.IP
+	unavailbleIPs []net.IP
+	mask          net.IPMask
+	network       net.IP
+	broadcast     net.IP
 }
 
 // New IPv4 network range. Results include network and broadcase IPs.
@@ -25,6 +25,7 @@ func New(cidrNet string) (IPv4Range, error) {
 		return r, err
 	}
 
+	// Calculate the range of IPs in the subnet
 	var ips []net.IP
 	for ip.Mask(ipnet.Mask); ipnet.Contains(ip); increment(ip) {
 		copiedIP := make([]byte, len(ip))
@@ -32,11 +33,17 @@ func New(cidrNet string) (IPv4Range, error) {
 		ips = append(ips, copiedIP)
 	}
 
+	// Set all initial properties on IPV4Range
 	r.ips = ips
-	r.Mask = ipnet.Mask
-	r.Network = ipnet.IP
-	r.Broadcast = broadcast(ipnet.IP, ipnet.Mask)
+	r.mask = ipnet.Mask
+	r.network = ipnet.IP
+	r.broadcast = Broadcast(ipnet.IP, ipnet.Mask)
 
+	// Set availableIPs, remove broadcast/network addresses
+	r.availableIPs = make([]net.IP, len(r.ips))
+	copy(r.availableIPs, r.ips)
+	r.Remove(r.broadcast)
+	r.Remove(r.network)
 	return r, nil
 }
 
@@ -46,47 +53,59 @@ func (r *IPv4Range) All() []net.IP {
 	return r.ips
 }
 
-// Available returns only usable IPs by filtering out
-// the network and broadcast addresses
-func (r *IPv4Range) Available() []net.IP {
-	ips := make([]net.IP, len(r.ips))
-	copy(ips, r.ips)
-
-	// Filter out Network address
-	ips = append(ips[:0], ips[1:]...)
-	// Filter out Broadcast address
-	ips = append(ips[:len(ips)-1], ips[len(ips):]...)
-
-	return ips
+// Mask returns a net.IPMask netmask for the subnet
+func (r *IPv4Range) Mask() net.IPMask {
+	return r.mask
 }
 
-// Remove manually removes an IP from an IPv4Range
-func (r *IPv4Range) Remove(ip string) bool {
-	remIP := net.ParseIP(ip)
-	if remIP == nil {
-		return false
-	}
+// Network returns a net.IP network address for the subnet
+func (r *IPv4Range) Network() net.IP {
+	return r.network
+}
 
-	for idx, val := range r.ips {
-		if val.Equal(remIP) {
-			r.ips = append(r.ips[:idx], r.ips[idx+1:]...)
-		}
-	}
+// Broadcast returns a net.IP broadcast address for the subnet
+func (r *IPv4Range) Broadcast() net.IP {
+	return r.broadcast
+}
 
-	return true
+// Available returns only usable IPs. Broadcast/Network are filtered out by
+// default. Any other IPs that have been removed with Remove() will not
+// be returned as well.
+func (r *IPv4Range) Available() []net.IP {
+	return r.availableIPs
 }
 
 // NextAvailable returns the next available IP(s) in the IP Range. The number of
 // available IPs returned should be specified as a parameter.
 func (r *IPv4Range) NextAvailable(num int) ([]net.IP, error) {
-	if len(r.Available()) < num {
-		return nil, fmt.Errorf("Requested %d IPs, only %d available", num, len(r.Available()))
+	if len(r.availableIPs) < num {
+		return nil, fmt.Errorf("Requested %d IPs, only %d available", num, len(r.availableIPs))
 	}
 
-	return r.Available()[:num], nil
+	return r.availableIPs[:num], nil
 }
 
-func broadcast(ip net.IP, mask net.IPMask) net.IP {
+// Unavailable returns whichever IPs are missing from Available().
+func (r *IPv4Range) Unavailable() []net.IP {
+	return r.unavailbleIPs
+}
+
+// Remove manually removes an IP from an IPv4Range
+func (r *IPv4Range) Remove(ip net.IP) bool {
+	found := false
+	for idx, val := range r.availableIPs {
+		if val.Equal(ip) {
+			found = true
+			r.availableIPs = append(r.availableIPs[:idx], r.availableIPs[idx+1:]...)
+			r.unavailbleIPs = append(r.unavailbleIPs, ip)
+		}
+	}
+
+	return found
+}
+
+// Broadcast calculates a subnet's broadcast address based on an IP and Mask
+func Broadcast(ip net.IP, mask net.IPMask) net.IP {
 	return net.IPv4(
 		ip[0]|^mask[0],
 		ip[1]|^mask[1],
@@ -94,6 +113,7 @@ func broadcast(ip net.IP, mask net.IPMask) net.IP {
 		ip[3]|^mask[3])
 }
 
+// Helper function for IPV4Range.New
 func increment(ip net.IP) {
 	for i := len(ip) - 1; i >= 0; i-- {
 		ip[i]++

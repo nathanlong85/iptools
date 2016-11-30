@@ -1,6 +1,9 @@
 package ipv4range
 
-import "testing"
+import (
+	"net"
+	"testing"
+)
 
 func TestNew(t *testing.T) {
 	r, err := New("192.168.0.0/24")
@@ -8,7 +11,7 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(r.ips) != 256 {
+	if len(r.All()) != 256 {
 		t.Fatal("Incorrect number of IPs returned for /24 test range")
 	}
 }
@@ -40,7 +43,7 @@ func TestAvailable(t *testing.T) {
 	}
 
 	for _, ip := range r.Available() {
-		if ip.Equal(r.Broadcast) || ip.Equal(r.Network) {
+		if ip.Equal(r.Broadcast()) || ip.Equal(r.Network()) {
 			t.Fatal("Available IPs should not include broadcast or network IP")
 		}
 	}
@@ -54,5 +57,33 @@ func TestAll(t *testing.T) {
 
 	if len(r.All()) != 256 {
 		t.Fatal("Incorrect number of IPs returned for /24 test range")
+	}
+}
+
+func TestRemove(t *testing.T) {
+	r, err := New("192.168.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r.Remove(net.ParseIP("192.168.0.1"))
+	if len(r.Available()) != 253 {
+		t.Fatalf("%d available IPs returned. Should be 253", len(r.Available()))
+	}
+}
+
+func TestUnavailable(t *testing.T) {
+	r, err := New("192.168.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r.Unavailable()) != 2 {
+		t.Fatalf("%d unavailable IPs returned. Should be 2", len(r.Unavailable()))
+	}
+
+	r.Remove(net.ParseIP("192.168.0.1"))
+	if len(r.Unavailable()) != 3 {
+		t.Fatalf("%d unavailable IPs returned. Should be 3", len(r.Unavailable()))
 	}
 }
